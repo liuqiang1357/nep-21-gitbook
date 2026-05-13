@@ -1,33 +1,45 @@
 # Types and Errors
 
-This page summarizes the shared types used by the NEP-21 dAPI.
+This page defines the shared data shapes used by NEP-21.
 
-## Primitive Aliases
+## Primitive Types
 
 | Type | Definition | Description |
 | --- | --- | --- |
-| `Base64Encoded` | `string` | Data encoded as base64. |
-| `Address` | `string` | N3 address, for example `NSiVJYZej4XsxG5CUpdwn7VRQk8iiiDMPM`. |
-| `UInt160` | `string` | 160-bit hash represented by a hexadecimal string. |
-| `UInt256` | `string` | 256-bit hash represented by a hexadecimal string. |
+| `Base64Encoded` | `string` | Base64 encoded data. |
+| `Address` | `string` | N3 address. |
+| `UInt160` | `string` | 160-bit hash as a hexadecimal string. |
+| `UInt256` | `string` | 256-bit hash as a hexadecimal string. |
 | `ECPoint` | `string` | ECC public key. |
-| `Integer` | `number \| string` | Large integer. Use strings when values may exceed JavaScript safe integer limits. |
+| `Integer` | `number \| string` | Integer value. Use strings for large values. |
 | `HexString` | `string` | Hexadecimal string. |
-| `Version` | `string` | Version string, for example `"1.0.0"`. |
+| `Version` | `string` | Version string. |
 | `Network` | `number` | N3 network magic number. |
 
-## Network Values
+## Common Network Values
 
-| Network | Value |
+| Network | Magic |
 | --- | --- |
 | MainNet | `860833102` |
 | TestNet | `894710606` |
 
-Always compare against the wallet's `provider.network` and `provider.supportedNetworks` before sending network-specific transactions.
+## Account
 
-## Contract Parameters
+```ts
+export type Account = {
+  hash: UInt160;
+  address: Address;
+  label?: string;
+  contract?: {
+    script?: Base64Encoded;
+    parameters: Parameter[];
+    deployed: boolean;
+  };
+  extra?: any;
+};
+```
 
-### `ContractParameterType`
+## Contract Arguments
 
 ```ts
 export type ContractParameterType =
@@ -44,43 +56,19 @@ export type ContractParameterType =
   | "Map"
   | "InteropInterface"
   | "Void";
-```
 
-### `Argument`
+export type Parameter = {
+  name?: string;
+  type: ContractParameterType;
+};
 
-```ts
 export type Argument = {
   type: ContractParameterType;
   value?: any;
 };
 ```
 
-### `Parameter`
-
-```ts
-export type Parameter = {
-  name?: string;
-  type: ContractParameterType;
-};
-```
-
-## Accounts
-
-```ts
-export type Account = {
-  hash: UInt160;
-  address: Address;
-  label?: string;
-  contract?: {
-    script?: Base64Encoded;
-    parameters: Parameter[];
-    deployed: boolean;
-  };
-  extra?: any;
-};
-```
-
-## Witness Scopes
+## Signers and Witness Scopes
 
 ```ts
 export type WitnessScope =
@@ -101,16 +89,24 @@ export type WitnessScope =
   | "CalledByEntry, CustomGroups, WitnessRules"
   | "CustomContracts, CustomGroups, WitnessRules"
   | "CalledByEntry, CustomContracts, CustomGroups, WitnessRules";
+
+export type Signer = {
+  account: UInt160;
+  scopes: WitnessScope;
+  allowedContracts?: UInt160[];
+  allowedGroups?: ECPoint[];
+  rules?: WitnessRule[];
+};
 ```
 
-| Scope | Description |
+| Scope | Use |
 | --- | --- |
-| `None` | Only signs the transaction. No contracts may use the witness. |
-| `CalledByEntry` | Only the entry contract may use the witness. Recommended default for dApps. |
-| `CustomContracts` | Specific contracts may use the witness. |
-| `CustomGroups` | Specific contract groups may use the witness. |
-| `WitnessRules` | Witness use must satisfy specified witness rules. |
-| `Global` | Allows witness use in all contexts. Use only for highly trusted flows. |
+| `None` | Sign the transaction without allowing contract witness use. |
+| `CalledByEntry` | Allow only the entry contract to use the witness. This is the safest common default. |
+| `CustomContracts` | Restrict witness use to specific contracts. |
+| `CustomGroups` | Restrict witness use to specific contract groups. |
+| `WitnessRules` | Restrict witness use with explicit witness rules. |
+| `Global` | Allow witness use in all contexts. Treat this as high risk. |
 
 ## Witness Rules
 
@@ -130,69 +126,13 @@ export interface WitnessCondition {
   type: WitnessConditionType;
 }
 
-export interface BooleanCondition extends WitnessCondition {
-  type: "Boolean";
-  expression: boolean;
-}
-
-export interface NotCondition extends WitnessCondition {
-  type: "Not";
-  expression: WitnessCondition;
-}
-
-export interface AndCondition extends WitnessCondition {
-  type: "And";
-  expressions: WitnessCondition[];
-}
-
-export interface OrCondition extends WitnessCondition {
-  type: "Or";
-  expressions: WitnessCondition[];
-}
-
-export interface ScriptHashCondition extends WitnessCondition {
-  type: "ScriptHash";
-  hash: UInt160;
-}
-
-export interface GroupCondition extends WitnessCondition {
-  type: "Group";
-  group: ECPoint;
-}
-
-export interface CalledByEntryCondition extends WitnessCondition {
-  type: "CalledByEntry";
-}
-
-export interface CalledByContractCondition extends WitnessCondition {
-  type: "CalledByContract";
-  hash: UInt160;
-}
-
-export interface CalledByGroupCondition extends WitnessCondition {
-  type: "CalledByGroup";
-  group: ECPoint;
-}
-
 export type WitnessRule = {
   action: "Deny" | "Allow";
   condition: WitnessCondition;
 };
 ```
 
-## Signer
-
-```ts
-export type Signer = {
-  account: UInt160;
-  scopes: WitnessScope;
-  allowedContracts?: UInt160[];
-  allowedGroups?: ECPoint[];
-  rules?: WitnessRule[];
-};
-```
-
-## Invocation
+## Invocations
 
 ```ts
 export type InvocationArguments = {
@@ -212,15 +152,9 @@ export type InvocationResult = {
 };
 ```
 
-## VM and Stack Types
+## VM Data
 
 ```ts
-export type TriggerType =
-  | "OnPersist"
-  | "PostPersist"
-  | "Verification"
-  | "Application";
-
 export type VMState =
   | "NONE"
   | "HALT"
@@ -243,41 +177,15 @@ export type StackItem = {
   type: StackItemType;
   value?: any;
 };
-```
 
-## Notifications and Application Logs
-
-```ts
 export type Notification = {
   contract: UInt160;
   eventname: string;
   state: StackItem;
 };
-
-export type ApplicationLog = {
-  txid: UInt256;
-  executions: {
-    trigger: TriggerType;
-    vmstate: VMState;
-    exception?: string;
-    gasconsumed: Integer;
-    stack: StackItem[];
-    notifications: Notification[];
-  }[];
-};
 ```
 
-## Token
-
-```ts
-export type Token = {
-  symbol: string;
-  decimals: number;
-  totalSupply: Integer;
-};
-```
-
-## Transaction Options
+## Transactions
 
 ```ts
 export type TransactionOptions = {
@@ -285,17 +193,7 @@ export type TransactionOptions = {
   extraSystemFee?: Integer;
   validUntilBlock?: number;
 };
-```
 
-| Field | Description |
-| --- | --- |
-| `suggestedSystemFee` | Suggested system fee. If provided, wallet should use it instead of automatic calculation. |
-| `extraSystemFee` | Extra system fee added to the automatically calculated system fee. Ignored when `suggestedSystemFee` is provided. |
-| `validUntilBlock` | Block height until which the transaction is valid. |
-
-## Contract Parameters Context
-
-```ts
 export type ContractParametersContext = {
   type: "Neo.Network.P2P.Payloads.Transaction";
   hash: UInt256;
@@ -308,55 +206,6 @@ export type ContractParametersContext = {
   network: Network;
 };
 ```
-
-## Signing
-
-```ts
-export type SignOptions = {
-  isBase64Encoded?: boolean;
-  isTypedData?: boolean;
-  isLedgerCompatible?: boolean;
-};
-
-export type SignedMessage = {
-  payload: Base64Encoded;
-  signature: Base64Encoded;
-  account: UInt160;
-  pubkey: ECPoint;
-};
-```
-
-| Option | Description |
-| --- | --- |
-| `isBase64Encoded` | Indicates whether `message` is already base64 encoded. Defaults to `false`. |
-| `isTypedData` | Reserved for typed data. The current spec notes that this can only be `false` for now. |
-| `isLedgerCompatible` | If `true`, wallet signs a Ledger-compatible wrapped payload. Defaults to `false`. |
-
-## Authentication
-
-```ts
-export type AuthenticationChallengePayload = {
-  action: "Authentication";
-  grant_type: "Signature";
-  allowed_algorithms: ["ECDSA-P256"];
-  domain: string;
-  networks: Network[];
-  nonce: string;
-  timestamp: number;
-};
-
-export type AuthenticationResponsePayload = {
-  algorithm: "ECDSA-P256";
-  network: Network;
-  pubkey: ECPoint;
-  address: Address;
-  nonce: string;
-  timestamp: number;
-  signature: Base64Encoded;
-};
-```
-
-## Blocks and Transactions
 
 ```ts
 export type TransactionAttributeType =
@@ -383,7 +232,11 @@ export type Transaction = {
   attributes: TransactionAttribute[];
   script: Base64Encoded;
 };
+```
 
+## Blocks and Logs
+
+```ts
 export type Block = {
   hash: UInt256;
   size: number;
@@ -399,11 +252,72 @@ export type Block = {
   nextConsensus: UInt160;
   tx: Transaction[];
 };
+
+export type ApplicationLog = {
+  txid: UInt256;
+  executions: {
+    trigger: TriggerType;
+    vmstate: VMState;
+    exception?: string;
+    gasconsumed: Integer;
+    stack: StackItem[];
+    notifications: Notification[];
+  }[];
+};
 ```
 
-## Error Model
+## Token
 
-All promise rejections should use a structured error object.
+```ts
+export type Token = {
+  symbol: string;
+  decimals: number;
+  totalSupply: Integer;
+};
+```
+
+## Message Signing
+
+```ts
+export type SignOptions = {
+  isBase64Encoded?: boolean;
+  isTypedData?: boolean;
+  isLedgerCompatible?: boolean;
+};
+
+export type SignedMessage = {
+  payload: Base64Encoded;
+  signature: Base64Encoded;
+  account: UInt160;
+  pubkey: ECPoint;
+};
+```
+
+## Authentication
+
+```ts
+export type AuthenticationChallengePayload = {
+  action: "Authentication";
+  grant_type: "Signature";
+  allowed_algorithms: ["ECDSA-P256"];
+  domain: string;
+  networks: Network[];
+  nonce: string;
+  timestamp: number;
+};
+
+export type AuthenticationResponsePayload = {
+  algorithm: "ECDSA-P256";
+  network: Network;
+  pubkey: ECPoint;
+  address: Address;
+  nonce: string;
+  timestamp: number;
+  signature: Base64Encoded;
+};
+```
+
+## Error Codes
 
 ```ts
 export const enum ErrorCode {
@@ -431,7 +345,7 @@ export interface FailedError extends Error {
 }
 ```
 
-| Code | Name | Description |
+| Code | Name | Meaning |
 | --- | --- | --- |
 | `10000` | `UNKNOWN` | Unknown error. |
 | `10001` | `UNSUPPORTED` | Requested feature or operation is not supported. |
@@ -440,31 +354,24 @@ export interface FailedError extends Error {
 | `10004` | `FAILED` | Contract execution failed. |
 | `10005` | `TIMEOUT` | Requested operation timed out. |
 | `10006` | `CANCELED` | User canceled the operation. |
-| `10007` | `INSUFFICIENT_FUNDS` | Balance is insufficient. |
+| `10007` | `INSUFFICIENT_FUNDS` | Balance cannot cover amount or fees. |
 | `10008` | `RPC_ERROR` | RPC server returned an exception. |
 
-## Error Handling Example
+## Error Handling Pattern
 
 ```ts
 try {
-  const txid = await provider.invoke(invocations, signers);
-  console.log(txid);
+  return await provider.invoke(invocations, signers);
 } catch (error: any) {
-  switch (error.code) {
-    case 10006:
-      // The user rejected the wallet prompt.
-      break;
-    case 10007:
-      // The account cannot pay the transfer amount or fees.
-      break;
-    case 10008:
-      // The RPC server rejected or failed the request.
-      console.error(error.data);
-      break;
-    default:
-      console.error(error);
-      break;
+  if (error.code === 10006) {
+    return undefined;
   }
+
+  if (error.code === 10004 && error.data) {
+    console.error("VM state:", error.data.state);
+  }
+
+  throw error;
 }
 ```
 

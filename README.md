@@ -1,178 +1,129 @@
-# NEP-21 dAPI Developer Guide
+# NEP-21 dAPI
 
-NEP-21 defines a common dAPI interface for N3 dApps and external wallet providers. This guide turns the specification into developer-oriented Markdown that can be imported into GitBook directly.
+NEP-21 defines a common browser dAPI for N3 dApps and external wallet providers. It gives dApps a predictable way to find a wallet, read connected accounts, request signatures, build transactions, relay transactions, and subscribe to account or network changes.
 
-The API reference follows the structure used by NeoLine dAPI documentation: method description, input arguments, success response, error response, example, and example response.
+The goal is simple: a dApp should not need a custom integration for every wallet, and a wallet should not need a different API shape for every dApp.
 
-## Who This Is For
+## Who Should Read This
 
-This guide is written for:
-
-| Role | Use this guide to |
+| Reader | Start here |
 | --- | --- |
-| dApp developers | discover a wallet provider, read accounts, sign messages, send assets, and invoke contracts |
-| wallet providers | expose a compatible `IDapiProvider` implementation to dApps |
-| documentation maintainers | publish NEP-21 as GitBook, Mintlify, Docusaurus, or Nextra documentation |
+| dApp developers | [dApp Developers](dapp-developers.md) |
+| Wallet providers | [Wallet Providers](wallet-providers.md) |
+| SDK and tooling authors | [API Reference](api-reference.md) and [Types and Errors](types-and-errors.md) |
+| Integration reviewers | [Interoperability](interoperability.md) |
 
-## GitBook Import
+## What NEP-21 Standardizes
 
-Import the `nep-21-gitbook` folder into GitBook.
-
-GitBook will use:
-
-| File | Purpose |
+| Area | What the dAPI provides |
 | --- | --- |
-| `README.md` | landing page |
-| `SUMMARY.md` | sidebar navigation |
-| `api-reference.md` | provider discovery, events, properties, and methods |
-| `types-and-errors.md` | shared TypeScript-style types and error codes |
-| `wallet-provider-checklist.md` | wallet implementation checklist |
+| Provider discovery | Browser events for requesting and announcing an `IDapiProvider` instance. |
+| Provider metadata | Wallet name, version, dAPI version, compatibility list, active network, supported networks, icon, and website. |
+| Accounts | Read connected accounts and ask the user to select an address. |
+| Authentication | Request an authentication signature compatible with the NEP-20 authentication flow. |
+| Assets and contracts | Read balances, call contracts offchain, and request onchain invocations. |
+| Transactions | Build, sign, relay, or directly submit transactions. |
+| Chain data | Read blocks, transactions, application logs, storage values, and token metadata. |
+| Events | Subscribe to account and network changes. |
+| Errors | Handle failures through stable numeric error codes. |
 
-## Quick Start
+## Core Concepts
 
-### 1. Get a Provider
+### Provider
 
-Wallets implementing NEP-21 announce themselves by dispatching `Neo.DapiProvider.ready`. A dApp may also request a provider by dispatching `Neo.DapiProvider.request`.
+The provider is the wallet object exposed to the page. dApps use it as the single entry point for wallet-mediated actions.
 
 ```ts
-export function waitForNeoDapiProvider(expectedVersion = "1.0", timeoutMs = 3000) {
-  return new Promise((resolve, reject) => {
-    let settled = false;
-
-    const cleanup = () => {
-      window.removeEventListener("Neo.DapiProvider.ready", onReady);
-      clearTimeout(timer);
-    };
-
-    const finish = (provider: any) => {
-      if (settled) return;
-      settled = true;
-      cleanup();
-      resolve(provider);
-    };
-
-    const onReady = (event: Event) => {
-      const provider = (event as CustomEvent).detail?.provider;
-      if (provider?.compatibility?.includes("NEP-21")) {
-        finish(provider);
-      }
-    };
-
-    const timer = window.setTimeout(() => {
-      if (settled) return;
-      settled = true;
-      cleanup();
-      reject(new Error("No NEP-21 provider was found."));
-    }, timeoutMs);
-
-    window.addEventListener("Neo.DapiProvider.ready", onReady);
-
-    // Ask installed wallets/extensions to inject or announce a compatible provider.
-    window.dispatchEvent(new CustomEvent("Neo.DapiProvider.request", {
-      detail: { version: expectedVersion },
-    }));
-  });
-}
+type Provider = IDapiProvider;
 ```
 
-### 2. Validate Provider Metadata
+### Account
 
-NEP-21 does not define a `getProvider()` method. The provider instance exposes provider metadata as properties.
+An account represents a wallet-controlled N3 account. NEP-21 exposes both the address and script hash.
 
 ```ts
-const provider: any = await waitForNeoDapiProvider();
+type Account = {
+  hash: string;
+  address: string;
+  label?: string;
+};
+```
 
-if (provider.dapiVersion !== "1.0") {
-  throw new Error(`Unsupported dAPI version: ${provider.dapiVersion}`);
-}
+### Network
+
+Networks are represented by N3 network magic numbers.
+
+| Network | Magic |
+| --- | --- |
+| MainNet | `860833102` |
+| TestNet | `894710606` |
+
+Before signing or sending a transaction, dApps should verify that `provider.network` matches the network expected by the application.
+
+### Invocation
+
+An invocation describes a contract call.
+
+```ts
+const invocation = {
+  hash: "0xd2a4cff31913016155e38e474a2c06d08be276cf",
+  operation: "symbol",
+  args: [],
+};
+```
+
+`call` executes an invocation offchain. `invoke` asks the wallet to create, sign, and relay an onchain transaction.
+
+## Basic Integration
+
+```ts
+const provider = await waitForNeoDapiProvider();
 
 if (!provider.compatibility.includes("NEP-21")) {
-  throw new Error(`${provider.name} does not support NEP-21.`);
+  throw new Error("The selected wallet does not support NEP-21.");
 }
 
-console.log({
-  name: provider.name,
-  version: provider.version,
-  dapiVersion: provider.dapiVersion,
-  network: provider.network,
-  supportedNetworks: provider.supportedNetworks,
-});
-```
-
-### 3. Read Accounts and Subscribe to Changes
-
-```ts
 const accounts = await provider.getAccounts();
-const currentAccount = accounts[0];
+const account = accounts[0];
 
-provider.on("accountchanged", (event: CustomEvent) => {
-  console.log("Accounts changed:", event.detail.accounts);
-});
-
-provider.on("networkchanged", (event: CustomEvent) => {
-  console.log("Network changed:", event.detail.network);
-});
-```
-
-### 4. Call a Contract Offchain
-
-```ts
 const result = await provider.call({
   hash: "0xd2a4cff31913016155e38e474a2c06d08be276cf",
   operation: "symbol",
   args: [],
 });
 
-console.log(result.state, result.stack);
+console.log(account.address, result.stack);
 ```
 
-### 5. Invoke a Contract Onchain
+## Provider Discovery
+
+Wallets announce a provider with `Neo.DapiProvider.ready`.
 
 ```ts
-const txid = await provider.invoke([
-  {
-    hash: "0xd2a4cff31913016155e38e474a2c06d08be276cf",
-    operation: "transfer",
-    args: [
-      { type: "Hash160", value: currentAccount.hash },
-      { type: "Hash160", value: "0x1111111111111111111111111111111111111111" },
-      { type: "Integer", value: "100000000" },
-      { type: "Any" },
-    ],
-    abortOnFail: true,
-  },
-], [
-  {
-    account: currentAccount.hash,
-    scopes: "CalledByEntry",
-  },
-]);
-
-console.log("Transaction hash:", txid);
+window.dispatchEvent(new CustomEvent("Neo.DapiProvider.ready", {
+  detail: { provider },
+}));
 ```
 
-## Integration Notes
+dApps can also request a provider with `Neo.DapiProvider.request`.
 
-NEP-21 intentionally standardizes the wallet-facing API surface, but production dApps should still handle wallet differences carefully:
+```ts
+window.dispatchEvent(new CustomEvent("Neo.DapiProvider.request", {
+  detail: { version: "1.0" },
+}));
+```
 
-| Topic | Recommendation |
-| --- | --- |
-| Provider discovery | Listen for `Neo.DapiProvider.ready` and also dispatch `Neo.DapiProvider.request`. |
-| Compatibility | Check `provider.compatibility.includes("NEP-21")` before calling methods. |
-| Account state | Re-read `getAccounts()` before signing or sending high-value transactions. |
-| Network state | Compare `provider.network` with the network expected by the dApp. |
-| `send` sender | Pass the `from` account explicitly when possible. The spec text says wallets may select it when omitted, but the current interface lists `from` as a positional parameter. |
-| Error handling | Branch by numeric `error.code`, not by localized `error.message`. |
+The recommended dApp pattern is to listen for `ready`, dispatch `request`, filter providers by compatibility, and then let the user choose when multiple compatible wallets respond.
 
-## Documentation Platform Recommendation
+## Recommended Reading Order
 
-GitBook is a practical choice if the target audience includes non-engineering contributors and you want a hosted editor.
+1. Read [dApp Developers](dapp-developers.md) if you are integrating a wallet into an application.
+2. Read [Wallet Providers](wallet-providers.md) if you are exposing a wallet implementation to dApps.
+3. Use [API Reference](api-reference.md) while implementing individual methods.
+4. Use [Types and Errors](types-and-errors.md) when wiring TypeScript types and error handling.
+5. Use [Interoperability](interoperability.md) before shipping a production integration.
 
-For developer API documentation, Mintlify is usually the most polished hosted option because it treats API references, tabs, callouts, and code examples as first-class content. For open-source docs that should live close to the repository and support versioned builds, Docusaurus or Nextra are stronger long-term choices.
-
-For this NEP-21 document set, GitBook import is enough today. If the docs become the canonical wallet/dApp developer portal, consider Mintlify for hosted API docs or Docusaurus/Nextra for repo-native publishing.
-
-## Sources
+## Reference Materials
 
 * [NEP-21 specification](https://github.com/neo-project/proposals/blob/master/nep-21.mediawiki)
-* [NeoLine N3 dAPI documentation](https://neoline.io/dapi/N3.html#getProvider)
+* [Neo developer documentation](https://developers.neo.org/docs/n3/develop/network/testnet)

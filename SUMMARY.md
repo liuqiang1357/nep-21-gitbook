@@ -1,7 +1,9 @@
 # Summary
 
-* [NEP-21 dAPI Developer Guide](README.md)
+* [Overview](README.md)
+* [dApp Developers](dapp-developers.md)
+* [Wallet Providers](wallet-providers.md)
 * [API Reference](api-reference.md)
 * [Types and Errors](types-and-errors.md)
-* [Wallet Provider Checklist](wallet-provider-checklist.md)
+* [Interoperability](interoperability.md)
 
