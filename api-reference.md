@@ -1,12 +1,12 @@
 # API Reference
 
-This page documents the `IDapiProvider` interface defined by NEP-21.
+This page documents the `IDapiProvider` interface defined by the current NEP-21 proposal.
 
-## Provider Discovery
+## Provider
 
 ### `Neo.DapiProvider.ready`
 
-Wallet providers dispatch this browser event when an `IDapiProvider` is ready.
+Wallet providers dispatch this browser event when an `IDapiProvider` is ready. dApps listen for it and read the provider from `event.detail.provider`.
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -36,7 +36,7 @@ window.dispatchEvent(new CustomEvent("Neo.DapiProvider.request", {
 
 If multiple providers respond, the dApp may choose which provider to use.
 
-## Provider Properties
+### Provider properties
 
 NEP-21 exposes provider information as properties on the provider object.
 
@@ -76,37 +76,7 @@ Example provider information:
 }
 ```
 
-## Events
-
-### `on(event, listener)`
-
-Adds an event handler.
-
-| Parameter | Type | Description |
-| --- | --- | --- |
-| `event` | `EventName` | `"accountchanged"` or `"networkchanged"`. |
-| `listener` | `(e: CustomEvent) => void` | Event handler. |
-
-```ts
-provider.on("accountchanged", (event) => {
-  console.log(event.detail.accounts);
-});
-```
-
-### `removeListener(event, listener)`
-
-Removes an event handler.
-
-| Parameter | Type | Description |
-| --- | --- | --- |
-| `event` | `EventName` | `"accountchanged"` or `"networkchanged"`. |
-| `listener` | `(e: CustomEvent) => void` | Event handler to remove. |
-
-```ts
-provider.removeListener("accountchanged", onAccountChanged);
-```
-
-## Authentication and Accounts
+## Account and Authentication
 
 ### `authenticate(payload)`
 
@@ -186,29 +156,7 @@ Possible error: `CANCELED`.
 const address = await provider.pickAddress("Select an address");
 ```
 
-### `signMessage(message, account?, options?)`
-
-Signs a message with the specified account. The algorithm is ECDSA with SHA-256.
-
-| Parameter | Type | Description |
-| --- | --- | --- |
-| `message` | `string \| Base64Encoded` | Message to sign. |
-| `account` | `UInt160` | Optional account script hash. |
-| `options` | `SignOptions` | Optional signing options. |
-
-Returns `SignedMessage`.
-
-Possible errors: `INVALID`, `NOTFOUND`, `TIMEOUT`, `CANCELED`.
-
-```ts
-const signed = await provider.signMessage(
-  "hello",
-  "0x682cca3ebdc66210e5847d7f8115846586079d4a",
-  { isBase64Encoded: false },
-);
-```
-
-## Assets and Contracts
+## Read Methods
 
 ### `getBalance(asset, account)`
 
@@ -265,118 +213,6 @@ const result = await provider.call({
   args: [],
 });
 ```
-
-## Transactions
-
-### `send(asset, from, to, amount, data?)`
-
-Sends assets to an account and returns the transaction hash.
-
-| Parameter | Type | Description |
-| --- | --- | --- |
-| `asset` | `UInt160` | Asset contract hash. |
-| `from` | `UInt160` | Sender account script hash. |
-| `to` | `UInt160` | Recipient account script hash. |
-| `amount` | `Integer` | Amount to send. |
-| `data` | `Argument` | Optional transfer data. |
-
-Returns `UInt256`.
-
-Possible errors: `INVALID`, `NOTFOUND`, `FAILED`, `TIMEOUT`, `CANCELED`, `INSUFFICIENT_FUNDS`, `RPC_ERROR`.
-
-```ts
-const txid = await provider.send(
-  "0xd2a4cff31913016155e38e474a2c06d08be276cf",
-  "0x682cca3ebdc66210e5847d7f8115846586079d4a",
-  "0x1111111111111111111111111111111111111111",
-  "100000000",
-  { type: "Any" },
-);
-```
-
-### `invoke(invocations, signers?, attributes?, options?)`
-
-Calls one or more contracts onchain and returns the transaction hash.
-
-| Parameter | Type | Description |
-| --- | --- | --- |
-| `invocations` | `InvocationArguments[]` | Contract calls. |
-| `signers` | `Signer[]` | Optional transaction signers. |
-| `attributes` | `TransactionAttribute[]` | Optional transaction attributes. |
-| `options` | `TransactionOptions` | Optional transaction options. |
-
-Returns `UInt256`.
-
-Possible errors: `INVALID`, `FAILED`, `TIMEOUT`, `CANCELED`, `RPC_ERROR`.
-
-```ts
-const txid = await provider.invoke([
-  {
-    hash: "0xd2a4cff31913016155e38e474a2c06d08be276cf",
-    operation: "transfer",
-    args: [
-      { type: "Hash160", value: "0x682cca3ebdc66210e5847d7f8115846586079d4a" },
-      { type: "Hash160", value: "0x1111111111111111111111111111111111111111" },
-      { type: "Integer", value: "100000000" },
-      { type: "Any" }
-    ],
-    abortOnFail: true
-  }
-]);
-```
-
-### `makeTransaction(invocations, signers?, attributes?, options?)`
-
-Calls one or more contracts onchain and returns the transaction without relaying it.
-
-| Parameter | Type | Description |
-| --- | --- | --- |
-| `invocations` | `InvocationArguments[]` | Contract calls. |
-| `signers` | `Signer[]` | Optional transaction signers. |
-| `attributes` | `TransactionAttribute[]` | Optional transaction attributes. |
-| `options` | `TransactionOptions` | Optional transaction options. |
-
-Returns `ContractParametersContext`.
-
-Possible errors: `INVALID`, `FAILED`, `TIMEOUT`, `CANCELED`, `RPC_ERROR`.
-
-```ts
-const context = await provider.makeTransaction(invocations, signers);
-```
-
-### `sign(context)`
-
-Signs a transaction with the current wallet. This is usually used for multi-signature transactions.
-
-| Parameter | Type | Description |
-| --- | --- | --- |
-| `context` | `ContractParametersContext` | Transaction context. |
-
-Returns `ContractParametersContext`.
-
-Possible errors: `UNSUPPORTED`, `INVALID`, `NOTFOUND`, `TIMEOUT`, `CANCELED`.
-
-```ts
-const signedContext = await provider.sign(context);
-```
-
-### `relay(context)`
-
-Relays a transaction and returns the transaction hash.
-
-| Parameter | Type | Description |
-| --- | --- | --- |
-| `context` | `ContractParametersContext` | Transaction context. |
-
-Returns `UInt256`.
-
-Possible errors: `INVALID`, `TIMEOUT`, `CANCELED`, `INSUFFICIENT_FUNDS`, `RPC_ERROR`.
-
-```ts
-const txid = await provider.relay(signedContext);
-```
-
-## Chain Data
 
 ### `getBlock(hash)`
 
@@ -474,4 +310,197 @@ const value = await provider.getStorage(
   "0x0123456789abcdef0123456789abcdef01234567",
   "dG9rZW4w",
 );
+```
+
+## Write and Signing Methods
+
+### `send(asset, from, to, amount, data?)`
+
+Sends assets to an account and returns the transaction hash.
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `asset` | `UInt160` | Asset contract hash. |
+| `from` | `UInt160` | Sender account script hash. |
+| `to` | `UInt160` | Recipient account script hash. |
+| `amount` | `Integer` | Amount to send. |
+| `data` | `Argument` | Optional transfer data. |
+
+Returns `UInt256`.
+
+Possible errors: `INVALID`, `NOTFOUND`, `FAILED`, `TIMEOUT`, `CANCELED`, `INSUFFICIENT_FUNDS`, `RPC_ERROR`.
+
+```ts
+const txid = await provider.send(
+  "0xd2a4cff31913016155e38e474a2c06d08be276cf",
+  "0x682cca3ebdc66210e5847d7f8115846586079d4a",
+  "0x1111111111111111111111111111111111111111",
+  "100000000",
+  { type: "Any" },
+);
+```
+
+### `invoke(invocations, signers?, attributes?, options?)`
+
+Calls one or more contracts onchain and returns the transaction hash.
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `invocations` | `InvocationArguments[]` | Contract calls. |
+| `signers` | `Signer[]` | Optional transaction signers. |
+| `attributes` | `TransactionAttribute[]` | Optional transaction attributes. |
+| `options` | `TransactionOptions` | Optional transaction options. |
+
+Returns `UInt256`.
+
+Possible errors: `INVALID`, `FAILED`, `TIMEOUT`, `CANCELED`, `RPC_ERROR`.
+
+```ts
+const txid = await provider.invoke([
+  {
+    hash: "0xd2a4cff31913016155e38e474a2c06d08be276cf",
+    operation: "transfer",
+    args: [
+      { type: "Hash160", value: "0x682cca3ebdc66210e5847d7f8115846586079d4a" },
+      { type: "Hash160", value: "0x1111111111111111111111111111111111111111" },
+      { type: "Integer", value: "100000000" },
+      { type: "Any" }
+    ],
+    abortOnFail: true
+  }
+]);
+```
+
+### `makeTransaction(invocations, signers?, attributes?, options?)`
+
+Calls one or more contracts onchain and returns the transaction without relaying it.
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `invocations` | `InvocationArguments[]` | Contract calls. |
+| `signers` | `Signer[]` | Optional transaction signers. |
+| `attributes` | `TransactionAttribute[]` | Optional transaction attributes. |
+| `options` | `TransactionOptions` | Optional transaction options. |
+
+Returns `ContractParametersContext`.
+
+Possible errors: `INVALID`, `FAILED`, `TIMEOUT`, `CANCELED`, `RPC_ERROR`.
+
+```ts
+const GAS = "0xd2a4cff31913016155e38e474a2c06d08be276cf";
+const sender = "0x682cca3ebdc66210e5847d7f8115846586079d4a";
+const recipient = "0x1111111111111111111111111111111111111111";
+
+const context = await provider.makeTransaction(
+  [
+    {
+      hash: GAS,
+      operation: "transfer",
+      args: [
+        { type: "Hash160", value: sender },
+        { type: "Hash160", value: recipient },
+        { type: "Integer", value: "100000000" },
+        { type: "Any" }
+      ],
+      abortOnFail: true
+    }
+  ],
+  [
+    {
+      account: sender,
+      scopes: "CalledByEntry"
+    }
+  ]
+);
+```
+
+### `sign(context)`
+
+Signs a transaction with the current wallet. This is usually used for multi-signature transactions.
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `context` | `ContractParametersContext` | Transaction context. |
+
+Returns `ContractParametersContext`.
+
+Possible errors: `UNSUPPORTED`, `INVALID`, `NOTFOUND`, `TIMEOUT`, `CANCELED`.
+
+```ts
+// context is a ContractParametersContext returned by makeTransaction.
+const signedContext = await provider.sign(context);
+```
+
+### `signMessage(message, account?, options?)`
+
+Signs a message with the specified account. The algorithm is ECDSA with SHA-256.
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `message` | `string \| Base64Encoded` | Message to sign. |
+| `account` | `UInt160` | Optional account script hash. |
+| `options` | `SignOptions` | Optional signing options. |
+
+Returns `SignedMessage`.
+
+Possible errors: `INVALID`, `NOTFOUND`, `TIMEOUT`, `CANCELED`.
+
+```ts
+const signed = await provider.signMessage(
+  "hello",
+  "0x682cca3ebdc66210e5847d7f8115846586079d4a",
+  { isBase64Encoded: false },
+);
+```
+
+### `relay(context)`
+
+Relays a transaction and returns the transaction hash.
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `context` | `ContractParametersContext` | Transaction context. |
+
+Returns `UInt256`.
+
+Possible errors: `INVALID`, `TIMEOUT`, `CANCELED`, `INSUFFICIENT_FUNDS`, `RPC_ERROR`.
+
+```ts
+// signedContext is a signed ContractParametersContext.
+const txid = await provider.relay(signedContext);
+```
+
+## Event Methods
+
+### `on(event, listener)`
+
+Adds an event handler.
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `event` | `EventName` | `"accountchanged"` or `"networkchanged"`. |
+| `listener` | `(e: CustomEvent) => void` | Event handler. |
+
+```ts
+provider.on("accountchanged", (event) => {
+  console.log(event.detail.accounts);
+});
+```
+
+### `removeListener(event, listener)`
+
+Removes an event handler.
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `event` | `EventName` | `"accountchanged"` or `"networkchanged"`. |
+| `listener` | `(e: CustomEvent) => void` | Event handler to remove. |
+
+```ts
+const onAccountChanged = (event: CustomEvent) => {
+  console.log(event.detail.accounts);
+};
+
+provider.on("accountchanged", onAccountChanged);
+provider.removeListener("accountchanged", onAccountChanged);
 ```

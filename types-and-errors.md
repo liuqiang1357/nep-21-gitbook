@@ -1,8 +1,10 @@
 # Types and Errors
 
-This page lists the shared types and error codes used by NEP-21.
+This page groups the shared types used by the current NEP-21 proposal.
 
 ## Basic Types
+
+These aliases appear throughout the provider interface.
 
 | Type | Definition | Description |
 | --- | --- | --- |
@@ -16,7 +18,9 @@ This page lists the shared types and error codes used by NEP-21.
 | `Version` | `string` | Version string. |
 | `Network` | `number` | N3 network magic number. |
 
-## Provider Events
+## Provider and Event Types
+
+These types support provider discovery and runtime provider events.
 
 ```ts
 export type EventName =
@@ -40,7 +44,9 @@ export type NetworkChangedEvent = CustomEvent<{
 }>;
 ```
 
-## Account
+## Account and Authentication Types
+
+These types are used by `authenticate`, `getAccounts`, and `pickAddress`.
 
 ```ts
 export type Account = {
@@ -54,9 +60,31 @@ export type Account = {
   };
   extra?: any;
 };
+
+export type AuthenticationChallengePayload = {
+  action: "Authentication";
+  grant_type: "Signature";
+  allowed_algorithms: ["ECDSA-P256"];
+  domain: string;
+  networks: Network[];
+  nonce: string;
+  timestamp: number;
+};
+
+export type AuthenticationResponsePayload = {
+  algorithm: "ECDSA-P256";
+  network: Network;
+  pubkey: ECPoint;
+  address: Address;
+  nonce: string;
+  timestamp: number;
+  signature: Base64Encoded;
+};
 ```
 
-## Contract Parameters
+## Contract Parameter Types
+
+These types describe contract method parameters and arguments.
 
 ```ts
 export type ContractParameterType =
@@ -85,7 +113,66 @@ export type Argument = {
 };
 ```
 
-## Witnesses and Signers
+## Invocation and VM Result Types
+
+These types are used by `call`, `invoke`, `makeTransaction`, and application log results.
+
+```ts
+export type InvocationArguments = {
+  hash: UInt160;
+  operation: string;
+  args?: Argument[];
+  abortOnFail?: boolean;
+};
+
+export type InvocationResult = {
+  script: Base64Encoded;
+  state: VMState;
+  gasconsumed: Integer;
+  exception?: string;
+  notifications: Notification[];
+  stack: StackItem[];
+};
+
+export type TriggerType =
+  | "OnPersist"
+  | "PostPersist"
+  | "Verification"
+  | "Application";
+
+export type VMState =
+  | "NONE"
+  | "HALT"
+  | "FAULT"
+  | "BREAK";
+
+export type StackItemType =
+  | "Any"
+  | "Pointer"
+  | "Boolean"
+  | "Integer"
+  | "ByteString"
+  | "Buffer"
+  | "Array"
+  | "Struct"
+  | "Map"
+  | "InteropInterface";
+
+export type StackItem = {
+  type: StackItemType;
+  value?: any;
+};
+
+export type Notification = {
+  contract: UInt160;
+  eventname: string;
+  state: StackItem;
+};
+```
+
+## Transaction and Signing Types
+
+These types are used when creating, signing, or relaying transactions.
 
 ```ts
 export type WitnessScope =
@@ -134,31 +221,7 @@ export type Signer = {
   allowedGroups?: ECPoint[];
   rules?: WitnessRule[];
 };
-```
 
-## Invocation
-
-```ts
-export type InvocationArguments = {
-  hash: UInt160;
-  operation: string;
-  args?: Argument[];
-  abortOnFail?: boolean;
-};
-
-export type InvocationResult = {
-  script: Base64Encoded;
-  state: VMState;
-  gasconsumed: Integer;
-  exception?: string;
-  notifications: Notification[];
-  stack: StackItem[];
-};
-```
-
-## Transaction Context
-
-```ts
 export type TransactionOptions = {
   suggestedSystemFee?: Integer;
   extraSystemFee?: Integer;
@@ -176,9 +239,24 @@ export type ContractParametersContext = {
   }>;
   network: Network;
 };
+
+export type SignOptions = {
+  isBase64Encoded?: boolean;
+  isTypedData?: boolean;
+  isLedgerCompatible?: boolean;
+};
+
+export type SignedMessage = {
+  payload: Base64Encoded;
+  signature: Base64Encoded;
+  account: UInt160;
+  pubkey: ECPoint;
+};
 ```
 
-## Chain Data
+## Chain Data Types
+
+These types are returned by read methods for blocks, transactions, application logs, storage, and tokens.
 
 ```ts
 export type TransactionAttributeType =
@@ -221,45 +299,6 @@ export type Block = {
   nextConsensus: UInt160;
   tx: Transaction[];
 };
-```
-
-## VM Data
-
-```ts
-export type TriggerType =
-  | "OnPersist"
-  | "PostPersist"
-  | "Verification"
-  | "Application";
-
-export type VMState =
-  | "NONE"
-  | "HALT"
-  | "FAULT"
-  | "BREAK";
-
-export type StackItemType =
-  | "Any"
-  | "Pointer"
-  | "Boolean"
-  | "Integer"
-  | "ByteString"
-  | "Buffer"
-  | "Array"
-  | "Struct"
-  | "Map"
-  | "InteropInterface";
-
-export type StackItem = {
-  type: StackItemType;
-  value?: any;
-};
-
-export type Notification = {
-  contract: UInt160;
-  eventname: string;
-  state: StackItem;
-};
 
 export type ApplicationLog = {
   txid: UInt256;
@@ -272,52 +311,11 @@ export type ApplicationLog = {
     notifications: Notification[];
   }[];
 };
-```
 
-## Token
-
-```ts
 export type Token = {
   symbol: string;
   decimals: number;
   totalSupply: Integer;
-};
-```
-
-## Signing and Authentication
-
-```ts
-export type SignOptions = {
-  isBase64Encoded?: boolean;
-  isTypedData?: boolean;
-  isLedgerCompatible?: boolean;
-};
-
-export type SignedMessage = {
-  payload: Base64Encoded;
-  signature: Base64Encoded;
-  account: UInt160;
-  pubkey: ECPoint;
-};
-
-export type AuthenticationChallengePayload = {
-  action: "Authentication";
-  grant_type: "Signature";
-  allowed_algorithms: ["ECDSA-P256"];
-  domain: string;
-  networks: Network[];
-  nonce: string;
-  timestamp: number;
-};
-
-export type AuthenticationResponsePayload = {
-  algorithm: "ECDSA-P256";
-  network: Network;
-  pubkey: ECPoint;
-  address: Address;
-  nonce: string;
-  timestamp: number;
-  signature: Base64Encoded;
 };
 ```
 
@@ -344,4 +342,3 @@ export interface Error {
 | `10006` | `CANCELED` | The requested operation was cancelled by the user. |
 | `10007` | `INSUFFICIENT_FUNDS` | The requested operation failed due to insufficient balance. |
 | `10008` | `RPC_ERROR` | An exception was thrown by the RPC server. |
-
