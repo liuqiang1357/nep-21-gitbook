@@ -387,18 +387,14 @@ Returns `ContractParametersContext`.
 Possible errors: `INVALID`, `FAILED`, `TIMEOUT`, `CANCELED`, `RPC_ERROR`.
 
 ```ts
-const GAS = "0xd2a4cff31913016155e38e474a2c06d08be276cf";
-const sender = "0x682cca3ebdc66210e5847d7f8115846586079d4a";
-const recipient = "0x1111111111111111111111111111111111111111";
-
 const context = await provider.makeTransaction(
   [
     {
-      hash: GAS,
+      hash: "0xd2a4cff31913016155e38e474a2c06d08be276cf",
       operation: "transfer",
       args: [
-        { type: "Hash160", value: sender },
-        { type: "Hash160", value: recipient },
+        { type: "Hash160", value: "0x682cca3ebdc66210e5847d7f8115846586079d4a" },
+        { type: "Hash160", value: "0x1111111111111111111111111111111111111111" },
         { type: "Integer", value: "100000000" },
         { type: "Any" }
       ],
@@ -407,7 +403,7 @@ const context = await provider.makeTransaction(
   ],
   [
     {
-      account: sender,
+      account: "0x682cca3ebdc66210e5847d7f8115846586079d4a",
       scopes: "CalledByEntry"
     }
   ]
