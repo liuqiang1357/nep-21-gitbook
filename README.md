@@ -1,6 +1,6 @@
 # NEP-21 dAPI for N3
 
-NEP-21 defines a common browser API for N3 dApps and external wallet providers. It lets a dApp obtain a wallet provider, inspect wallet metadata, read accounts, request signatures, invoke contracts, relay transactions, and query selected chain data.
+NEP-21 proposes a common browser API for N3 dApps and external wallet providers. It lets a dApp obtain a wallet provider, inspect wallet metadata, read accounts, request signatures, invoke contracts, relay transactions, and query selected chain data.
 
 This documentation is written for two readers:
 
@@ -9,7 +9,7 @@ This documentation is written for two readers:
 | dApp developers | How to obtain a provider and call the standard methods. |
 | Wallet providers | What shape the provider object, methods, events, and errors should have. |
 
-The API pages follow the general style of wallet dAPI documentation: each method has a short description, parameters, return value, possible errors, and an example where useful. The content itself follows NEP-21.
+The API pages follow the general style of wallet dAPI documentation: each method has a short description, parameters, return value, possible errors, and an example where useful. The content itself follows the current NEP-21 proposal.
 
 ## How dApps Get a Provider
 
@@ -103,4 +103,4 @@ console.log(accounts, count);
 
 ## Source
 
-* [NEP-21 specification](https://github.com/neo-project/proposals/blob/master/nep-21.mediawiki)
+* [NEP-21 proposal PR #145](https://github.com/neo-project/proposals/pull/145)
