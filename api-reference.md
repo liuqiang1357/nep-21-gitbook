@@ -1,148 +1,156 @@
 # API Reference
 
-The NEP-21 provider interface is exposed as `IDapiProvider`.
-
-```ts
-interface IDapiProvider {
-  name: string;
-  version: Version;
-  dapiVersion: Version;
-  compatibility: string[];
-  connected: boolean;
-  network: Network;
-  supportedNetworks: Network[];
-  icon: string;
-  website: string;
-  extra: any;
-
-  on(event: EventName, listener: (e: CustomEvent) => void): void;
-  removeListener(event: EventName, listener: (e: CustomEvent) => void): void;
-
-  authenticate(payload: AuthenticationChallengePayload): Promise<AuthenticationResponsePayload>;
-  getAccounts(): Promise<Account[]>;
-  pickAddress(prompt?: string): Promise<Address>;
-  getBalance(asset: UInt160, account: UInt160): Promise<Integer>;
-  send(asset: UInt160, from: UInt160, to: UInt160, amount: Integer, data?: Argument): Promise<UInt256>;
-  call(invocation: InvocationArguments): Promise<InvocationResult>;
-  invoke(invocations: InvocationArguments[], signers?: Signer[], attributes?: TransactionAttribute[], options?: TransactionOptions): Promise<UInt256>;
-  makeTransaction(invocations: InvocationArguments[], signers?: Signer[], attributes?: TransactionAttribute[], options?: TransactionOptions): Promise<ContractParametersContext>;
-  sign(context: ContractParametersContext): Promise<ContractParametersContext>;
-  signMessage(message: string | Base64Encoded, account?: UInt160, options?: SignOptions): Promise<SignedMessage>;
-  relay(context: ContractParametersContext): Promise<UInt256>;
-  getBlock(hash: UInt256): Promise<Block>;
-  getBlock(index: number): Promise<Block>;
-  getBlockCount(): Promise<number>;
-  getTransaction(txid: UInt256): Promise<Transaction>;
-  getApplicationLog(txid: UInt256): Promise<ApplicationLog>;
-  getStorage(hash: UInt160, key: Base64Encoded): Promise<Base64Encoded>;
-  getTokenInfo(hash: UInt160): Promise<Token>;
-}
-```
+This page documents the `IDapiProvider` interface defined by NEP-21.
 
 ## Provider Discovery
 
 ### `Neo.DapiProvider.ready`
 
-Wallets dispatch this event when a provider is ready.
+Wallet providers dispatch this browser event when an `IDapiProvider` is ready.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `detail.provider` | `IDapiProvider` | Provider instance. |
+| `detail.provider` | `IDapiProvider` | Provider instance exposed by the wallet. |
 
 ```ts
-window.dispatchEvent(new CustomEvent("Neo.DapiProvider.ready", {
-  detail: { provider },
-}));
+window.addEventListener("Neo.DapiProvider.ready", (event) => {
+  const provider = (event as CustomEvent).detail.provider;
+});
 ```
 
 ### `Neo.DapiProvider.request`
 
-dApps dispatch this event to request a compatible provider.
+dApps may dispatch this browser event to request a provider.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `detail.version` | `Version` | Expected dAPI version, currently `"1.0"`. |
+| `detail.version` | `Version` | dAPI version requested by the dApp. |
 
 ```ts
 window.dispatchEvent(new CustomEvent("Neo.DapiProvider.request", {
-  detail: { version: "1.0" },
+  detail: {
+    version: "1.0",
+  },
 }));
 ```
 
-## Properties
+If multiple providers respond, the dApp may choose which provider to use.
+
+## Provider Properties
+
+NEP-21 exposes provider information as properties on the provider object.
 
 | Property | Type | Description |
 | --- | --- | --- |
 | `name` | `string` | Provider name. |
 | `version` | `Version` | Provider version. |
-| `dapiVersion` | `Version` | dAPI version. Must currently be `"1.0"`. |
-| `compatibility` | `string[]` | Supported standards. Compatible providers should include `"NEP-21"`. |
-| `connected` | `boolean` | Whether the wallet is connected to the dApp. |
-| `network` | `Network` | Active N3 network magic number. |
+| `dapiVersion` | `Version` | dAPI version. It must currently be `"1.0"`. |
+| `compatibility` | `string[]` | Supported standards. It should include `"NEP-21"` when supported. |
+| `connected` | `boolean` | Whether the user has connected their wallet to the dApp. |
+| `network` | `Network` | Current network. |
 | `supportedNetworks` | `Network[]` | Networks supported by the provider. |
-| `icon` | `string` | Wallet icon URL. Use `https` or `data` URLs. |
-| `website` | `string` | Wallet website URL. |
-| `extra` | `any` | Wallet-specific extension data. |
+| `icon` | `string` | Provider icon URL. The URL scheme should be `https` or `data`. |
+| `website` | `string` | Provider website. |
+| `extra` | `any` | Additional provider data. |
+
+```ts
+console.log(provider.name);
+console.log(provider.compatibility);
+console.log(provider.network);
+```
+
+Example provider information:
+
+```json
+{
+  "name": "Example Wallet",
+  "version": "1.0.0",
+  "dapiVersion": "1.0",
+  "compatibility": ["NEP-21"],
+  "connected": true,
+  "network": 894710606,
+  "supportedNetworks": [860833102, 894710606],
+  "icon": "https://wallet.example/icon.png",
+  "website": "https://wallet.example",
+  "extra": {}
+}
+```
 
 ## Events
 
 ### `on(event, listener)`
 
-Registers a provider event listener.
+Adds an event handler.
 
-| Parameter | Type | Required | Description |
-| --- | --- | --- | --- |
-| `event` | `EventName` | Yes | `"accountchanged"` or `"networkchanged"`. |
-| `listener` | `(e: CustomEvent) => void` | Yes | Listener function. |
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `event` | `EventName` | `"accountchanged"` or `"networkchanged"`. |
+| `listener` | `(e: CustomEvent) => void` | Event handler. |
 
 ```ts
-provider.on("networkchanged", (event: CustomEvent) => {
-  console.log(event.detail.network);
+provider.on("accountchanged", (event) => {
+  console.log(event.detail.accounts);
 });
 ```
 
 ### `removeListener(event, listener)`
 
-Removes a provider event listener.
+Removes an event handler.
 
-| Parameter | Type | Required | Description |
-| --- | --- | --- | --- |
-| `event` | `EventName` | Yes | `"accountchanged"` or `"networkchanged"`. |
-| `listener` | `(e: CustomEvent) => void` | Yes | Listener previously registered with `on`. |
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `event` | `EventName` | `"accountchanged"` or `"networkchanged"`. |
+| `listener` | `(e: CustomEvent) => void` | Event handler to remove. |
 
 ```ts
-provider.removeListener("networkchanged", onNetworkChanged);
+provider.removeListener("accountchanged", onAccountChanged);
 ```
 
-## Account and Authentication Methods
+## Authentication and Accounts
 
 ### `authenticate(payload)`
 
-Requests an authentication signature.
+Requests authentication. This is usually used to log in to a website. The authentication process is described in NEP-20.
 
-| Parameter | Type | Required | Description |
-| --- | --- | --- | --- |
-| `payload` | `AuthenticationChallengePayload` | Yes | Authentication challenge. |
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `payload` | `AuthenticationChallengePayload` | Authentication challenge payload. |
 
 Returns `AuthenticationResponsePayload`.
 
 Possible errors: `UNSUPPORTED`, `INVALID`, `TIMEOUT`, `CANCELED`.
 
 ```ts
-const response = await provider.authenticate({
+const result = await provider.authenticate({
   action: "Authentication",
   grant_type: "Signature",
   allowed_algorithms: ["ECDSA-P256"],
-  domain: window.location.host,
+  domain: "example.com",
   networks: [894710606],
-  nonce: crypto.randomUUID(),
+  nonce: "nonce-value",
   timestamp: Date.now(),
 });
 ```
 
+Example response:
+
+```json
+{
+  "algorithm": "ECDSA-P256",
+  "network": 894710606,
+  "pubkey": "03b209fd4f53a7170ea4444e0cb0a6bb6a53c2bd016926989cf85f9b0fba17a70c",
+  "address": "NSiVJYZej4XsxG5CUpdwn7VRQk8iiiDMPM",
+  "nonce": "nonce-value",
+  "timestamp": 1710000000000,
+  "signature": "base64-signature"
+}
+```
+
 ### `getAccounts()`
 
-Gets the connected accounts.
+Gets the current connected account in the wallet.
+
+Parameters: none.
 
 Returns `Account[]`.
 
@@ -150,31 +158,43 @@ Returns `Account[]`.
 const accounts = await provider.getAccounts();
 ```
 
+Example response:
+
+```json
+[
+  {
+    "hash": "0x682cca3ebdc66210e5847d7f8115846586079d4a",
+    "address": "NSiVJYZej4XsxG5CUpdwn7VRQk8iiiDMPM",
+    "label": "Account 1"
+  }
+]
+```
+
 ### `pickAddress(prompt?)`
 
-Asks the user to choose an address.
+Prompts the user to select an account from the wallet and returns the selected address.
 
-| Parameter | Type | Required | Description |
-| --- | --- | --- | --- |
-| `prompt` | `string` | No | Optional text displayed by the wallet. |
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `prompt` | `string` | Optional prompt shown to the user. |
 
 Returns `Address`.
 
-Possible errors: `CANCELED`.
+Possible error: `CANCELED`.
 
 ```ts
-const address = await provider.pickAddress("Select a reward address.");
+const address = await provider.pickAddress("Select an address");
 ```
 
 ### `signMessage(message, account?, options?)`
 
-Signs a message with ECDSA SHA-256.
+Signs a message with the specified account. The algorithm is ECDSA with SHA-256.
 
-| Parameter | Type | Required | Description |
-| --- | --- | --- | --- |
-| `message` | `string \| Base64Encoded` | Yes | Message to sign. |
-| `account` | `UInt160` | No | Account script hash. |
-| `options` | `SignOptions` | No | Encoding and compatibility options. |
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `message` | `string \| Base64Encoded` | Message to sign. |
+| `account` | `UInt160` | Optional account script hash. |
+| `options` | `SignOptions` | Optional signing options. |
 
 Returns `SignedMessage`.
 
@@ -182,54 +202,57 @@ Possible errors: `INVALID`, `NOTFOUND`, `TIMEOUT`, `CANCELED`.
 
 ```ts
 const signed = await provider.signMessage(
-  "Sign in to example.app",
-  account.hash,
+  "hello",
+  "0x682cca3ebdc66210e5847d7f8115846586079d4a",
   { isBase64Encoded: false },
 );
 ```
 
-## Asset and Contract Methods
+## Assets and Contracts
 
 ### `getBalance(asset, account)`
 
-Gets an account balance for a token contract.
+Gets the balance of the specified account. The account can be in the wallet or an arbitrary address.
 
-| Parameter | Type | Required | Description |
-| --- | --- | --- | --- |
-| `asset` | `UInt160` | Yes | Token contract hash. |
-| `account` | `UInt160` | Yes | Account script hash. |
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `asset` | `UInt160` | Asset contract hash. |
+| `account` | `UInt160` | Account script hash. |
 
 Returns `Integer`.
 
 Possible errors: `INVALID`, `NOTFOUND`, `FAILED`, `RPC_ERROR`.
 
 ```ts
-const balance = await provider.getBalance(GAS, account.hash);
+const balance = await provider.getBalance(
+  "0xd2a4cff31913016155e38e474a2c06d08be276cf",
+  "0x682cca3ebdc66210e5847d7f8115846586079d4a",
+);
 ```
 
 ### `getTokenInfo(hash)`
 
-Gets token metadata.
+Gets information about a token.
 
-| Parameter | Type | Required | Description |
-| --- | --- | --- | --- |
-| `hash` | `UInt160` | Yes | Token contract hash. |
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `hash` | `UInt160` | Token contract hash. |
 
 Returns `Token`.
 
 Possible errors: `INVALID`, `NOTFOUND`, `FAILED`, `RPC_ERROR`.
 
 ```ts
-const token = await provider.getTokenInfo(GAS);
+const token = await provider.getTokenInfo("0xd2a4cff31913016155e38e474a2c06d08be276cf");
 ```
 
 ### `call(invocation)`
 
-Executes a contract call offchain.
+Calls a contract offchain and returns the execution result.
 
-| Parameter | Type | Required | Description |
-| --- | --- | --- | --- |
-| `invocation` | `InvocationArguments` | Yes | Contract call definition. |
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `invocation` | `InvocationArguments` | Contract call arguments. |
 
 Returns `InvocationResult`.
 
@@ -237,25 +260,25 @@ Possible errors: `INVALID`, `RPC_ERROR`.
 
 ```ts
 const result = await provider.call({
-  hash: GAS,
+  hash: "0xd2a4cff31913016155e38e474a2c06d08be276cf",
   operation: "symbol",
   args: [],
 });
 ```
 
-## Transaction Methods
+## Transactions
 
 ### `send(asset, from, to, amount, data?)`
 
-Sends assets and returns the transaction hash.
+Sends assets to an account and returns the transaction hash.
 
-| Parameter | Type | Required | Description |
-| --- | --- | --- | --- |
-| `asset` | `UInt160` | Yes | Token contract hash. |
-| `from` | `UInt160` | Yes | Sender account script hash. |
-| `to` | `UInt160` | Yes | Recipient account script hash. |
-| `amount` | `Integer` | Yes | Transfer amount. |
-| `data` | `Argument` | No | Optional transfer data. |
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `asset` | `UInt160` | Asset contract hash. |
+| `from` | `UInt160` | Sender account script hash. |
+| `to` | `UInt160` | Recipient account script hash. |
+| `amount` | `Integer` | Amount to send. |
+| `data` | `Argument` | Optional transfer data. |
 
 Returns `UInt256`.
 
@@ -263,9 +286,9 @@ Possible errors: `INVALID`, `NOTFOUND`, `FAILED`, `TIMEOUT`, `CANCELED`, `INSUFF
 
 ```ts
 const txid = await provider.send(
-  GAS,
-  account.hash,
-  recipientHash,
+  "0xd2a4cff31913016155e38e474a2c06d08be276cf",
+  "0x682cca3ebdc66210e5847d7f8115846586079d4a",
+  "0x1111111111111111111111111111111111111111",
   "100000000",
   { type: "Any" },
 );
@@ -273,28 +296,45 @@ const txid = await provider.send(
 
 ### `invoke(invocations, signers?, attributes?, options?)`
 
-Builds, signs, and relays one or more contract invocations.
+Calls one or more contracts onchain and returns the transaction hash.
 
-| Parameter | Type | Required | Description |
-| --- | --- | --- | --- |
-| `invocations` | `InvocationArguments[]` | Yes | Contract calls. |
-| `signers` | `Signer[]` | No | Transaction signers. |
-| `attributes` | `TransactionAttribute[]` | No | Transaction attributes. |
-| `options` | `TransactionOptions` | No | Fee and validity options. |
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `invocations` | `InvocationArguments[]` | Contract calls. |
+| `signers` | `Signer[]` | Optional transaction signers. |
+| `attributes` | `TransactionAttribute[]` | Optional transaction attributes. |
+| `options` | `TransactionOptions` | Optional transaction options. |
 
 Returns `UInt256`.
 
 Possible errors: `INVALID`, `FAILED`, `TIMEOUT`, `CANCELED`, `RPC_ERROR`.
 
 ```ts
-const txid = await provider.invoke(invocations, [
-  { account: account.hash, scopes: "CalledByEntry" },
+const txid = await provider.invoke([
+  {
+    hash: "0xd2a4cff31913016155e38e474a2c06d08be276cf",
+    operation: "transfer",
+    args: [
+      { type: "Hash160", value: "0x682cca3ebdc66210e5847d7f8115846586079d4a" },
+      { type: "Hash160", value: "0x1111111111111111111111111111111111111111" },
+      { type: "Integer", value: "100000000" },
+      { type: "Any" }
+    ],
+    abortOnFail: true
+  }
 ]);
 ```
 
 ### `makeTransaction(invocations, signers?, attributes?, options?)`
 
-Builds a transaction context without relaying it.
+Calls one or more contracts onchain and returns the transaction without relaying it.
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `invocations` | `InvocationArguments[]` | Contract calls. |
+| `signers` | `Signer[]` | Optional transaction signers. |
+| `attributes` | `TransactionAttribute[]` | Optional transaction attributes. |
+| `options` | `TransactionOptions` | Optional transaction options. |
 
 Returns `ContractParametersContext`.
 
@@ -306,11 +346,11 @@ const context = await provider.makeTransaction(invocations, signers);
 
 ### `sign(context)`
 
-Signs a transaction context with the wallet.
+Signs a transaction with the current wallet. This is usually used for multi-signature transactions.
 
-| Parameter | Type | Required | Description |
-| --- | --- | --- | --- |
-| `context` | `ContractParametersContext` | Yes | Transaction context. |
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `context` | `ContractParametersContext` | Transaction context. |
 
 Returns `ContractParametersContext`.
 
@@ -322,11 +362,11 @@ const signedContext = await provider.sign(context);
 
 ### `relay(context)`
 
-Relays a signed transaction context.
+Relays a transaction and returns the transaction hash.
 
-| Parameter | Type | Required | Description |
-| --- | --- | --- | --- |
-| `context` | `ContractParametersContext` | Yes | Signed transaction context. |
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `context` | `ContractParametersContext` | Transaction context. |
 
 Returns `UInt256`.
 
@@ -336,31 +376,49 @@ Possible errors: `INVALID`, `TIMEOUT`, `CANCELED`, `INSUFFICIENT_FUNDS`, `RPC_ER
 const txid = await provider.relay(signedContext);
 ```
 
-## Chain Data Methods
+## Chain Data
 
-### `getBlock(hashOrIndex)`
+### `getBlock(hash)`
 
-Gets a block by hash or index.
+Gets a block by hash.
 
-| Parameter | Type | Required | Description |
-| --- | --- | --- | --- |
-| `hashOrIndex` | `UInt256 \| number` | Yes | Block hash or block index. |
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `hash` | `UInt256` | Block hash. |
 
 Returns `Block`.
 
 Possible errors: `INVALID`, `NOTFOUND`, `RPC_ERROR`.
 
 ```ts
-const block = await provider.getBlock(1_000_000);
+const block = await provider.getBlock("0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
+```
+
+### `getBlock(index)`
+
+Gets a block by index.
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `index` | `number` | Block index. |
+
+Returns `Block`.
+
+Possible errors: `INVALID`, `NOTFOUND`, `RPC_ERROR`.
+
+```ts
+const block = await provider.getBlock(1000);
 ```
 
 ### `getBlockCount()`
 
-Gets the current block count.
+Gets the count of blocks in the blockchain.
+
+Parameters: none.
 
 Returns `number`.
 
-Possible errors: `RPC_ERROR`.
+Possible error: `RPC_ERROR`.
 
 ```ts
 const count = await provider.getBlockCount();
@@ -370,47 +428,50 @@ const count = await provider.getBlockCount();
 
 Gets a transaction by hash.
 
-| Parameter | Type | Required | Description |
-| --- | --- | --- | --- |
-| `txid` | `UInt256` | Yes | Transaction hash. |
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `txid` | `UInt256` | Transaction hash. |
 
 Returns `Transaction`.
 
 Possible errors: `INVALID`, `NOTFOUND`, `RPC_ERROR`.
 
 ```ts
-const transaction = await provider.getTransaction(txid);
+const tx = await provider.getTransaction("0x1f4d1defa46faa5e7b9b8d3f79a06bec777d7c26c4aa5f6f5899a291daa87c15");
 ```
 
 ### `getApplicationLog(txid)`
 
-Gets the application log for a transaction.
+Gets the application log of a transaction.
 
-| Parameter | Type | Required | Description |
-| --- | --- | --- | --- |
-| `txid` | `UInt256` | Yes | Transaction hash. |
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `txid` | `UInt256` | Transaction hash. |
 
 Returns `ApplicationLog`.
 
 Possible errors: `INVALID`, `RPC_ERROR`.
 
 ```ts
-const log = await provider.getApplicationLog(txid);
+const log = await provider.getApplicationLog("0x1f4d1defa46faa5e7b9b8d3f79a06bec777d7c26c4aa5f6f5899a291daa87c15");
 ```
 
 ### `getStorage(hash, key)`
 
-Gets a contract storage value.
+Gets a storage entry.
 
-| Parameter | Type | Required | Description |
-| --- | --- | --- | --- |
-| `hash` | `UInt160` | Yes | Contract hash. |
-| `key` | `Base64Encoded` | Yes | Storage key encoded as base64. |
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `hash` | `UInt160` | Contract hash. |
+| `key` | `Base64Encoded` | Storage key. |
 
 Returns `Base64Encoded`.
 
 Possible errors: `INVALID`, `NOTFOUND`, `RPC_ERROR`.
 
 ```ts
-const value = await provider.getStorage(contractHash, "dG9rZW4w");
+const value = await provider.getStorage(
+  "0x0123456789abcdef0123456789abcdef01234567",
+  "dG9rZW4w",
+);
 ```
